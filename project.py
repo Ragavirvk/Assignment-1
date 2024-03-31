@@ -363,7 +363,7 @@ questions = [
     ]
 
 # Streamlit code
-st.title(':bold[YOUTUBE DATA HARVESTING & WAREHOUSING]')
+st.title(':blue[YOUTUBE DATA HARVESTING & WAREHOUSING]')
 
 
 channel_id = st.text_input('Enter YouTube Channel ID:')
