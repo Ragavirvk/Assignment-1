@@ -13,6 +13,8 @@ YouTube Data Harvesting and Warehousing is a project aimed at developing a user-
 3.	API integration
 4.	Streamlit
 5.	Data Management using SQL
+6.	Ploty
+   
 
 
 
@@ -27,6 +29,7 @@ To run this project, you need to install the following packages:
 4.	pip install google-api-python-client
 5.	pip install streamlit
 6.	pip install requests-cache
+7.	pip install matplotlib seaborn
 
 
 **Usage**
