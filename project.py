@@ -10,6 +10,8 @@ import json
 import pandas as pd
 import streamlit as st
 import requests_cache
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 
@@ -366,6 +368,7 @@ questions = [
 st.title(':blue[YOUTUBE DATA HARVESTING & WAREHOUSING]')
 
 
+
 channel_id = st.text_input('Enter YouTube Channel ID:')
 
 if st.button('Get Channel Details'):
@@ -386,24 +389,143 @@ if st.button('Get Channel Details'):
 # Create a dropdown menu to select the question
 selected_question = st.sidebar.selectbox("Select a question", questions, key="selectbox_unique_key")
 
+
 # Fetch data based on the selected question
 if st.sidebar.button('Submit'):
     if selected_question == questions[0]:
         cursor.execute("SELECT  Title, channel_name FROM videos")
+        data = cursor.fetchall()
+        df = pd.DataFrame(data, columns=['video Title','Channel_Name'])
+        st.write(df)
+
+        # Create a bar chart using Matplotlib
+        fig, ax = plt.subplots()
+        plt.bar(df['video Title'], df['Channel_Name'])
+        plt.xlabel('video Title')
+        plt.ylabel('Channel_Name')
+        plt.title('Videos by Channel')
+        st.pyplot(fig)
+
+
     elif selected_question == questions[1]:
         cursor.execute("SELECT channel_name, COUNT(*) as video_count FROM videos GROUP BY channel_name ORDER BY video_count DESC")
+        data = cursor.fetchall()
+        df = pd.DataFrame(data, columns=['Channel_Name', 'No of videos'])
+        st.write(df)
+
+        # Create a bar chart using Matplotlib
+
+        fig, ax = plt.subplots()
+        plt.bar(df['Channel_Name'], df['No of videos'])
+        plt.xlabel('Channel_Name')
+        plt.ylabel('No of videos')
+        plt.title('No of videos by channel')
+        st.pyplot(fig)
+
+
+
     elif selected_question == questions[2]:
         cursor.execute("SELECT Title, channel_name, view FROM videos ORDER BY view DESC LIMIT 10")
+        data = cursor.fetchall()
+        df = pd.DataFrame(data, columns=['Video_Title', 'Channel name','View Count'])
+        st.write(df)
+
+        # Create a bar chart using Matplotlib
+        
+        fig, ax = plt.subplots()
+        plt.bar(df['Video_Title'], df['View Count'])
+        plt.xlabel('Video_Title')
+        plt.ylabel('View Count')
+        plt.title('Top 10 Videos by Views')
+        st.pyplot(fig)
+
+
     elif selected_question == questions[3]:
         cursor.execute("SELECT Title, COUNT(*) as comments FROM videos GROUP BY Title")
+        data = cursor.fetchall()
+        df = pd.DataFrame(data, columns=['Video Title', 'No of comments'])
+        st.write(df)
+
+         # Create a bar chart using Matplotlib
+        
+        fig, ax = plt.subplots(figsize=(45, 10))  # Set figure size (width, height))
+        plt.bar(df['Video Title'], df['No of comments'], color = 'yellow')
+        plt.xlabel('Video Title')
+        plt.ylabel('No of comments')
+        plt.title('No of comments per video')
+        plt.xticks(rotation=100, ha='right', fontsize=8)
+        st.pyplot(fig)
+
+
     elif selected_question == questions[4]:
         cursor.execute("SELECT MAX(likes) as max_likes FROM videos")
+        data = cursor.fetchall()
+        df = pd.DataFrame(data, columns=['Highest Likes'])
+        st.write(df)
+
+        # Create a bar chart using Matplotlib
+
+        fig, ax = plt.subplots()
+        plt.bar(df['Highest Likes'], df['Highest Likes'], color= 'green')
+        plt.xlabel('Video Title')
+        plt.ylabel('No of comments')
+        plt.title('Highest Number of Likes for a Video')
+        st.pyplot(fig)
+
     elif selected_question == questions[5]:
         cursor.execute("SELECT Title, SUM(likes) as total_likes, SUM(dislikes) as total_dislikes FROM videos GROUP BY Title")
+        data = cursor.fetchall()
+        df = pd.DataFrame(data, columns=['Video Title','Like Count','Dislike Count'])
+        st.write(df)
+
+       # Create a grouped bar chart using Matplotlib
+
+        fig, ax = plt.subplots()
+        width = 0.35  # the width of the bars
+        ind = range(len(df))  # the x locations for the groups
+        ax.bar(ind, df['Like Count'], width, label='Likes Count', color='blue')
+        ax.bar(ind, df['Dislike Count'], width, bottom=df['Dislike Count'], label='Dislikes', color='green')
+        ax.set_xlabel('Video Title')
+        ax.set_ylabel('Count')
+        ax.set_title('Likes and Dislikes per Video')
+        ax.legend()
+        st.pyplot(fig)
+
     elif selected_question == questions[6]:
         cursor.execute("SELECT channel_name, SUM(view) as total_views FROM videos GROUP BY channel_name")
+        data = cursor.fetchall()
+        df = pd.DataFrame(data, columns=['Channel Name', 'No of views'])
+        st.write(df)
+
+        # Create a bar chart using Matplotlib
+
+        fig, ax = plt.subplots()
+        plt.bar(df['Channel Name'],df['No of views'], color= 'blue')
+        plt.xlabel('Channel Name')
+        plt.ylabel('No of views')
+        plt.title('Total Views per channel')
+        plt.xticks(rotation=45, ha='right', fontsize=8)
+        plt.tight_layout()
+        st.pyplot(fig)
+
     elif selected_question == questions[7]:
         cursor.execute("SELECT DISTINCT channel_name FROM videos WHERE YEAR(published_date) = 2022")
+        data = cursor.fetchall()
+        df = pd.DataFrame(data, columns=['Channel Name'])
+        st.write(df)
+
+         # Count the number of unique channels
+        num_channels = len(df)
+        
+        # Create a horizontal bar chart using Matplotlib
+        fig, ax = plt.subplots(figsize=(8, num_channels * 0.5))  # Adjust height based on the number of channels
+        ax.barh(df['Channel Name'], 1, color='skyblue')  # Bar width set to 1
+        ax.set_xlabel('Count')
+        ax.set_ylabel('Channel Name')
+        ax.set_title('Unique Channels in 2022')
+        st.pyplot(fig)
+        
+
     elif selected_question == questions[8]:
         cursor.execute("""SELECT channel_name, AVG(duration_minutes) AS avg_duration 
                     FROM (
@@ -411,6 +533,22 @@ if st.sidebar.button('Submit'):
                             FROM videos
                         ) AS durations 
                         GROUP BY channel_name """)
+        data = cursor.fetchall()
+        df = pd.DataFrame(data, columns=['Channel Name', 'Average Duration'])
+        st.write(df)
+        
+        # Create a vertical bar chart using Matplotlib
+        
+        fig, ax = plt.subplots(figsize=(10, 6))  # Set figure size (width, height)
+        ax.bar(df['Channel Name'], df['Average Duration'], color='skyblue')
+        ax.set_xlabel('Channel Name')
+        ax.set_ylabel('Average Duration (minutes)')
+        ax.set_title('Average Duration of Videos per Channel')
+        plt.xticks(rotation=45, ha='right', fontsize=8)  # Rotate x-axis labels and adjust fontsize
+        plt.tight_layout()  # Adjust layout to prevent overlapping labels
+        st.pyplot(fig)
+
+        
     elif selected_question == questions[9]:
         cursor.execute("""SELECT Title, channel_name, COUNT(*) as comment_count 
             FROM videos 
@@ -418,13 +556,23 @@ if st.sidebar.button('Submit'):
             ORDER BY comment_count DESC 
             LIMIT 1
         """)
+        data = cursor.fetchall()
+        df = pd.DataFrame(data, columns=['Channel Title', 'Channel Name','No of Counts'])
+        st.write(df)
+
+
+        # Create a bar chart using Matplotlib
+
+        fig, ax = plt.subplots(figsize=(8, 6))  # Adjust figure size if needed
+        ax.bar(df['Channel Name'], df['No of Counts'], color='skyblue')
+        ax.set_xlabel('Channel Name')
+        ax.set_ylabel('No of Counts')
+        ax.set_title('Comment Count for Video with Most Comments')
+        st.pyplot(fig)
 
     data = cursor.fetchall()
-    df = pd.DataFrame(data)
-    st.write(df)
+    df = pd.DataFrame()
+    st.write()
 
     # Close the database connection
     mydb.close()
-
-
-    
