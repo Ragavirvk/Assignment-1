@@ -5,7 +5,7 @@ Youtube Data Harvesting and Warehousing
 import mysql.connector
 import os
 import googleapiclient.discovery
-import googleapiclient.errors
+from googleapiclient.errors import HttpError
 import json
 import pandas as pd
 import streamlit as st
@@ -14,8 +14,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
+
 #  UCeHd7SV9Cqa6s7awp9t3CcQ -As pubg
-# UCxJQSw2xdA-8EbZmj9XKZ_A - retriver
+# UCj0VBmldP8Hans-KYYxpAAA
+# UCduIoIMfD8tT3KoU0-zBRgQ
+# UCxJQSw2xdA-8EbZmj9XKZ_A
+# UCLzw8opUlMnSA2TQfj34K9w
+
 
 def Api():
     api = "AIzaSyClhjTeoUtn5P2K9nu-7ziMtgm-V7Dimh8"
@@ -43,7 +48,6 @@ cursor = mydb.cursor()
 
 
 def channel_info(id):
-
     cursor.execute("""CREATE TABLE IF NOT EXISTS channel_info (
                         channel_Name VARCHAR(255),
                         channel_Id VARCHAR(255),
@@ -53,30 +57,45 @@ def channel_info(id):
                         channel_description TEXT,
                         Playlist_id VARCHAR(255)
                     )""")
+    
     request = youtube.channels().list(
         part="snippet,contentDetails,statistics",
-        id=id )
+        id=id)
     response = request.execute()
-
 
     for i in response.get('items', []):
         data = dict(channel_Name=i['snippet']['title'],
-                   channel_Id=i['id'],
-                   subscribe=i['statistics']['subscriberCount'],
-                   views=i['statistics']['viewCount'],
-                   Total_videos=i['statistics']['videoCount'],
-                   channel_description=i['snippet']['description'],
-                   Playlist_id=i['contentDetails']['relatedPlaylists']['uploads'])
-        cursor.execute("INSERT INTO channel_info (channel_Name, channel_Id, subscribe, views, Total_videos, channel_description, Playlist_id) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                       (data['channel_Name'], data['channel_Id'], data['subscribe'], data['views'], data['Total_videos'], data['channel_description'], data['Playlist_id']))
-        mydb.commit()
+                    channel_Id=i['id'],
+                    subscribe=i['statistics']['subscriberCount'],
+                    views=i['statistics']['viewCount'],
+                    Total_videos=i['statistics']['videoCount'],
+                    channel_description=i['snippet']['description'],
+                    Playlist_id=i['contentDetails']['relatedPlaylists']['uploads'])
+        
+        try:
+            channel_Id = data['channel_Id']
+            cursor.execute("SELECT * FROM channel_info WHERE channel_Id = %s", (channel_Id,))
+            result = cursor.fetchone()
+
+            if not result:
+                sql = """INSERT INTO channel_info (channel_Name, channel_Id, subscribe, views, Total_videos, channel_description, Playlist_id) 
+                         VALUES (%s, %s, %s, %s, %s, %s, %s)"""
+                values = (data['channel_Name'], data['channel_Id'], data['subscribe'], data['views'], data['Total_videos'], data['channel_description'], data['Playlist_id'])
+                cursor.execute(sql, values)
+                st.success("Data inserted successfully!")
+            else:
+                st.warning("Record already exists in the table")
+        except mysql.connector.Error as error:
+            print("Failed to insert record into channel_info table {}".format(error))
+
+    mydb.commit()
 
     return data
 
 
-
 def get_Videos_Ids(channel_id):
     Video_Ids=[]
+    
     response=youtube.channels().list(id=channel_id,
                                     part='contentDetails').execute()
     Playlist_Id=response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
@@ -102,12 +121,12 @@ def get_Videos_Ids(channel_id):
     # Insert data into MySQL
     for video_id in Video_Ids:
         cursor.execute("INSERT INTO video_ids (video_id) VALUES (%s)", (video_id,))
+    
+  
+
     mydb.commit()
     return Video_Ids 
-
-
-
-
+    
 
 
 #get video information
@@ -198,7 +217,13 @@ def get_comment_info(video_ids):
                                (data['comment_Id'], data['video_Id'], data['comment_Text'], data['comment_Author'], data['comment_Published']))
                 mydb.commit()
     except Exception as e:
-        print(f"Error: {e}")
+        error_message = e.content.decode('utf-8')
+        if 'commentsDisabled' in error_message:
+            print("Comments are disabled for this video.")
+            return []
+        else:
+            print("An error occurred:", error_message)
+            return None
     
     return comment_data
 
@@ -403,16 +428,6 @@ def questions_page():
             st.write(df)
 
 
-            # Create a bar chart using Matplotlib
-
-            fig, ax = plt.subplots()
-            plt.bar(df['video Title'], df['Channel_Name'])
-            plt.xlabel('video Title')
-            plt.ylabel('Channel_Name')
-            plt.title('No of videos by channel')
-            plt.xticks(rotation=45, ha='right', fontsize=8)
-            st.pyplot(fig)
-
         elif selected_question == questions[1]:
             cursor.execute("SELECT channel_name, COUNT(*) as video_count FROM videos GROUP BY channel_name ORDER BY video_count DESC")
             data = cursor.fetchall()
@@ -438,7 +453,7 @@ def questions_page():
             st.write(df)
 
             # Create a bar chart using Matplotlib
-            
+             
             fig, ax = plt.subplots()
             plt.bar(df['Video_Title'], df['View Count'])
             plt.xlabel('Video_Title')
@@ -453,16 +468,6 @@ def questions_page():
             data = cursor.fetchall()
             df = pd.DataFrame(data, columns=['Video Title', 'No of comments'])
             st.write(df)
-
-            # Create a bar chart using Matplotlib
-            
-            fig, ax = plt.subplots()
-            plt.bar(df['Video Title'], df['No of comments'])
-            plt.xlabel('Video Title')
-            plt.ylabel('No of comments')
-            plt.title('Top 10 Videos by Views')
-            plt.xticks(rotation=50, ha='right', fontsize=8)
-            st.pyplot(fig)
 
 
         elif selected_question == questions[4]:
@@ -548,9 +553,9 @@ def questions_page():
             # Create a vertical bar chart using Matplotlib
             
             fig, ax = plt.subplots(figsize=(10, 6))  # Set figure size (width, height)
-            ax.bar(df['Channel Name'], df['Average Duration'], color='skyblue')
+            ax.bar(df['Channel Name'], df['Average Sec'], color='skyblue')
             ax.set_xlabel('Channel Name')
-            ax.set_ylabel('Average Duration (minutes)')
+            ax.set_ylabel('Average Sec')
             ax.set_title('Average Duration of Videos per Channel')
             plt.xticks(rotation=45, ha='right', fontsize=8)  # Rotate x-axis labels and adjust fontsize
             plt.tight_layout()  # Adjust layout to prevent overlapping labels
@@ -592,13 +597,12 @@ def questions_page():
 
 
 if __name__ == '__main__':
-    if 'page' not in st.session_state:
-        st.session_state.page = 'main_page'
+        if 'page' not in st.session_state:
+            st.session_state.page = 'main_page'
 
-    if st.session_state.page == 'main_page':
-        main()
-    elif st.session_state.page == 'questions_page':
-        questions_page()
+        if st.session_state.page == 'main_page':
+            main()
+        elif st.session_state.page == 'questions_page':
+            questions_page()
 
-    mydb.close()
-
+mydb.close()
